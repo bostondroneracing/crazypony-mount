@@ -209,51 +209,54 @@ def base(height, width, thickness, mounting_hole_radius=4.32/2.0):
 
     return base 
 
-def roll_cage():
-    w=3
-    r = 1
-    base_w = math.hypot(25, 25)
-
-    top = hull()(
-    translate([0, -9, 9])(
-        rotate([0, 90, 0])(
-            cylinder(h = w, r=7)
-        )
-    ),
-    translate([0, -base_w/2.0, r +DEFAULT_THICKNESS])(
-        rotate([0, 90, 0])(
-            cylinder(h = w, r=1)
-        )
-    ),
-    translate([0, base_w/2.0, r + DEFAULT_THICKNESS])(
-        rotate([0, 90, 0])(
-            cylinder(h = w, r=r)
-        )
-    )
-    )
-
-    #cage = difference()(
-    #    top, 
-    cage = shell(2)(top) 
-    #)
-    return cage
 
 class cage():
     def __init__(self):
         self.h = None
+
+    def _lift(self, w, h, l, angle):
+
+        a =rotate([angle, 180, 0])(
+            difference()(
+            translate([-w/2.0, 0, 0])(
+                cube([w, h, l])
+            ),
+            rotate([-mount_angle, 0, 0])(
+                translate([-w/2.0, -h, 0])(
+                    color(Blue)(cube([w + 2, h, l + 2]))
+                )
+            )
+        )
+        )
+
+        #Add in the lift
+#        lift_h = h #
+#        lift_w = math.tan(math.radians(angle)) * lift_h 
+#        lift_l = mount_width 
+#        lift = color(Blue)(
+#            translate([mount_width/2, (height/2 + lift_w)*-1, barrel_length])(
+#                    rotate([0, 180, 0])(
+#                        prism(lift_l, lift_w, lift_h)
+#                    )
+#        ))
+#
+        z = h * math.cos(math.radians(90-angle))
+        #z=0
+        b = translate([0, 0, z])(a)
+        c = translate([-w/2.0 - 1, 0,  -l])(cube([w+2, h, l]))
+        return difference()(b, c)
 
 
     def _bumper(self, depth, h):
 
 
         l = h-3 
+
+
         a = color(Red)(
             translate([0, h/2.0, depth/2.0])(
             cube([depth, h, depth], center=True))
             )
-#
-#        return hull()(
-#
 #
         b = translate([-depth/2.0, h, 10])(
                 rotate([0, 90, 0])(
@@ -268,19 +271,41 @@ class cage():
         c= translate([0, depth/2.0, l/2.0])(
             cube([depth, depth, l], center=True)
         )
-#
-#            translate([-depth/2.0, -4, h/2.0])(
-#                rotate([0, 90, 0])(
-#            cylinder(h = depth, r = 2.0)
-#                ))
-#            translate([-depth/2.0, 1, h/2.0])(
-#                rotate([0, 90, 0])(
-#                    cylinder(h = depth, r = h/2.0)
-#                )
-#            )
-#        )
-#
-        return hull()(a,b,b2,c)
+
+        outside = hull()(a,b,b2,c)
+
+        return union(outside, inside)
+
+    def _backing(self, w, h, depth):
+
+        top_offset = 1
+        r = 1.0
+        back =    hull()(
+        #part = union()(
+                translate([0, h/2.0, depth/2.0])(
+                    cube([w, h, depth], center=True)
+                ),
+                translate([0, h+top_offset, 0])(
+                    cylinder(h = depth, r = r)
+                )
+                )
+
+        t =2 
+        h -= t
+        w -= t
+        depth += t
+        cut =    hull()(
+                translate([0, h/2.0, depth/2.0])(
+                    cube([w, h, depth], center=True)
+                ),
+                translate([0, h+top_offset, 0])(
+                    cylinder(h = depth, r = r)
+                )
+                )
+        backing = difference()(back, translate([0, -1, -1])(color(Blue)(cut)))
+        return backing
+
+
     def __call__(self):
         #height part of the camera
         lift_o = math.tan(math.radians(mount_angle)) * (lens_barrel_height + lens_height + pcb_thickness)
@@ -290,26 +315,14 @@ class cage():
         depth = 2 
         w = pcb_width + (depth * 2)#Add bumbers
 
-        part =    hull()(
-        #part = union()(
-                translate([0, h/2.0, depth/2.0])(
-                    cube([w, lens_o, depth], center=True)
-                ),
-                translate([0, h+1, 0])(
-                    cylinder(h = depth, r = 1.0)
-                )
-                )
-        #Bumper
-            #translate([0, 0, h/2.0])(
-            #
-            #)
-        #)
-        return                 union()(
-part,  
+        return  union()(
+        self._backing(w, h, depth),  
                      translate([w/2.0 - depth/2.0, 0, 0])(
                          self._bumper(depth, h)
                      ),
                      translate([-w/2.0 + depth/2.0, 0, 0])(self._bumper(depth, h)),
+
+      #              self._lift(w, h/2.0, DEFAULT_THICKNESS, mount_angle)
                      )
     
 def asm_cage(part):
@@ -323,6 +336,7 @@ def mount_camera():
     # (pcb_thickness / math.cos(math.radians(45.0))   #math.tan(math.radians(mount_angle)) * pcb_thickness
     m = union()(
                         debug(camera(lens_barrel_height, lens_barrel_radius, lens_height, lens_radius, pcb_width, pcb_height, pcb_thickness=pcb_thickness)),
+
         translate([0, 0, pcb_thickness])(
             camera_mount(h , lens_barrel_radius, lens_barrel_height)
         )
@@ -353,11 +367,11 @@ def assembly():
             #Add Camera TX
             translate([0, 3, (fc_thickness/2.0) + tx_mount_slot/2.0 + tx_mount_h - tx_mount_slot - DEFAULT_THICKNESS ])(
                 color(Blue)(
-                    debug(camera_tx(antenna_length, antenna_radius, pcb_width, pcb_height, tx_mount_slot)))
+                    camera_tx(antenna_length, antenna_radius, pcb_width, pcb_height, tx_mount_slot))
             ),
 #        # Add TX Mount
-            translate([0, 0, tx_mount_mounting_h + fc_thickness/2.0])( 
-                tx_mount(tx_mount_w, tx_mount_clip_l, tx_mount_slot)),
+#            translate([0, 0, tx_mount_mounting_h + fc_thickness/2.0])( 
+#                tx_mount(tx_mount_w, tx_mount_clip_l, tx_mount_slot)),
 #
 #
 #        # Add the base 
