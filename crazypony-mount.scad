@@ -1,4 +1,4 @@
-$fn = 12;
+$fn = 32;
 
 union() {
 	translate(v = [0, -3, 0]) {
@@ -290,7 +290,7 @@ from parts import *
 from droneparts import *
 
 
-SEGMENTS = 12 #48
+SEGMENTS = 32#24#12 #48
 DEFAULT_THICKNESS = 0.5
 
 

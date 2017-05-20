@@ -5,7 +5,7 @@ from parts import *
 from droneparts import *
 
 
-SEGMENTS = 12 #48
+SEGMENTS = 32#24#12 #48
 DEFAULT_THICKNESS = 0.5
 
 
