@@ -5,7 +5,7 @@ from droneparts.camera import *
 from droneparts.hardware import *
 from droneparts.fc import *
 
-SEGMENTS = 48 
+SEGMENTS =  48 
 #Bigger than anything in the model
 INFINITE = 50
 
@@ -339,10 +339,10 @@ class AdjustableCameraMount(object):
 
         top = union()(
             top,
-            difference()(
-                flat_support,
-                flat_support_cut,
-            ),
+#            difference()(
+#                flat_support,
+#                flat_support_cut,
+#            ),
         )
         return union()(
             translate([0, SCREW_HEAD_R, 0])(top),
@@ -370,28 +370,45 @@ class AdjustableCameraMount(object):
 #            fc_base,
 #            keep,
 #        )
-        x = math.sqrt(math.pow(self.cage_r, 2) - math.pow(self.camera.lens_r, 2)) 
+        x = math.sqrt(math.pow(self.cage_r, 2) - math.pow(self.camera.lens_r, 2))
+
         center_cut = translate([0, INFINITE/2.0 , 0])(
-            cube([self.camera.w +  rounding_r*2, INFINITE, INFINITE], center=True))
+            cube([self.camera.w , INFINITE, INFINITE], center=True))
         back_cut = translate([0, INFINITE/2.0 , 0])(
             cube([INFINITE, INFINITE, INFINITE], center=True))
 
 
         fc_base = difference()(
                 fc_base,
-                center_cut,
+                #center_cut,
                 back_cut,
         )
-
         base_minkowski = minkowski()(
             fc_base,
             cylinder(h=thickness_before, r=SCREW_HEAD_R, center=True),
         )
-        groove_cut = translate([0, INFINITE/2.0 - x + SCREW_HEAD_R , 0])(
-            cube([self.w , INFINITE, INFINITE], center=True))
+        center_cut = hull()(
+            translate([0, INFINITE/2.0 - x + SCREW_HEAD_R , 0])(
+            cube([self.camera.w  , INFINITE, INFINITE], center=True)),
 
+            translate([0, -13, 0])(
+                cylinder(r = SCREW_HEAD_R, h=INFINITE, center=True)
+            )
+        )
+
+        base_minkowski -= center_cut
+        groove_cut = translate([0, INFINITE/2.0 - 6 , 0])(
+        cube([self.camera.w  + self.slider_h*2.0
+, INFINITE, INFINITE], center=True))
         base_minkowski -= groove_cut
 
+        slider_groove = self.groove(self.slider_h, self.slider_r, 
+                                    self.slider_w, self.start_angle, 
+                                    self.end_angle)
+
+#        base_minkowski +=translate([self.camera.w/2.0, SCREW_HEAD_R, self.frame_h])(
+#rotate([90, 0, 90])(
+#slider_groove))
 
         base = rotate([0, 0, -45])(
             inductrix_hole_punch(rotate([0, 0, 45])(base_minkowski
@@ -465,12 +482,12 @@ class AdjustableCameraMount(object):
 #            rotate([-(90-mount_angle), 0, 0])(
 #            translate([0, -CRAZYPONY_CAMERA_PCB_H/2.0, 0])(
 #
-        camera_angle = 30
+        camera_angle = -45
         camera = rotate([90-camera_angle, 0, 0])(
             color(Black)(self.camera.make())
         )
 
-        camera_holder = rotate([-10, 0, 0])(
+        camera_holder = rotate([-camera_angle, 0, 0])(
             translate([0, -CRAZYPONY_CAMERA_PCB_THICKNESS , 0])(
                 rotate([90, 0, 0])(
                         self.camera_mount()
@@ -479,12 +496,12 @@ class AdjustableCameraMount(object):
         )
 
         camera_asm = union()(
-          #  camera,
-            translate([0, SCREW_HEAD_R, 0])(camera_holder)
+            camera,
+            camera_holder
         )
 
         all = union()(
-            translate([0, 0, self.frame_h ])(camera_asm),
+    #        translate([0, SCREW_HEAD_R, self.frame_h ])(camera_asm),
             translate([0, 0, 0])(color(White)(self.frame())),
         )
         fc = BeeBrain()
@@ -517,8 +534,8 @@ if __name__ == "__main__":
     mount = AdjustableCameraMount(camera, fc)
     #all = mount.camera_mount()
 
-    #all = mount.test()
-    all = mount.camera_mount()
+    all = mount.test()
+    #all = mount.camera_mount()
     #all = mount.frame()
 
     scad_render_to_file(all,  filepath= "crazypony-mount-adjustable.scad", file_header='$fn = %s;' % SEGMENTS)
