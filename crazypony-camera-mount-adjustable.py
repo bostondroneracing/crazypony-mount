@@ -5,19 +5,23 @@ from droneparts.camera import *
 from droneparts.hardware import *
 from droneparts.fc import *
 
-SEGMENTS =  12 
-INFINITE = 100
+SEGMENTS =  16
+#Bigger than anything in the model
+INFINITE = 50
 
 
 class AdjustableCameraMount(object):
    
     # motor connected to motor connector 16.4
 
+
+    base_thickness = 1
     bolt_hole_r = SCREW_R 
 
-    bumper_offset = 1
+    bumper_offset = 2 
     cage_w = 1#2#0.8#2
     cage_r = CRAZYPONY_CAMERA_DEPTH + bumper_offset
+    frame_padding_z = 2 
     
     low_mount_angle = 0
     high_mount_angle = 30
@@ -50,6 +54,9 @@ class AdjustableCameraMount(object):
 
         angle = math.degrees(math.atan((self.mount_height/2.0) / (camera.depth - camera.lens_h - camera.lens_barrel_h)))
         self.start_angle = (180 - angle) - self.high_mount_angle
+
+        self.frame_h = (self.camera.h/2.0)  + self.frame_padding_z
+        self.w = self.camera.w + self.cage_w*2
 
     def camera_mount(self):
         padding = 1.0
@@ -98,7 +105,7 @@ class AdjustableCameraMount(object):
                             self.groove(self.slider_h, self.slider_r, self.slider_w, start_angle, end_angle)
                         ), 
                             # This is the tap
-                            cylinder(h=tap_h, r=SCREW_R)
+                            cylinder(h=tap_h, r=SCREW_R/2.0)
                         )
                 )
         )
@@ -106,7 +113,8 @@ class AdjustableCameraMount(object):
 
         #This is the support for the grooved piece
         side_wall_w = 2
-        side_wall = translate([self.camera.w/2.0 - side_wall_w, 0, -self.slider_r + self.camera.lens_barrel_h + self.camera.lens_h])(
+        side_wall = translate([self.camera.w/2.0 - side_wall_w, 0, 
+                               -self.slider_r + self.camera.lens_barrel_h + self.camera.lens_h])(
             rotate([90, 0, 90])(
                 cylinder(h=side_wall_w, r=self.slider_r)
             )
@@ -189,7 +197,7 @@ class AdjustableCameraMount(object):
         tick_depth = 0.2
         tick_h = 0.2
         major_tick_w = 1
-        letter_padding = 1
+        letter_padding = 0.5
 
         x =  -self.slider_bolt_cut_r + self.bolt_hole_r*2.0
         letter_x = x + major_tick_w + letter_padding
@@ -228,20 +236,34 @@ class AdjustableCameraMount(object):
                                     self.slider_w, self.start_angle, 
                                     self.end_angle)
 
+        inner_r = self.slider_r - self.slider_w -self.bumper_offset
+        inner_cage_cut = translate([0, 0, -1])(
+            cylinder(h = INFINITE, r = inner_r ))
 
-        c = translate([0, 0, -1])(cylinder(h = INFINITE, r = self.slider_r - self.slider_w -self.bumper_offset))
         #Cut the bottom
-        bottom_cut = translate([0, -INFINITE/2.0 - self.camera.h/2.0])(
-            cube([INFINITE, INFINITE, INFINITE], center=True)
+        cut_cube = cube([INFINITE, INFINITE, INFINITE], center=True)
+        bottom_cut = translate([0, -INFINITE/2.0 - self.frame_h])(
+            cut_cube
         )
+
+        end_cut = translate([INFINITE/2.0, 0, 0])(cut_cube)
+        rounded_end_r = (self.cage_r - inner_r)/2.0
+        rounded_end = translate([0, self.cage_r - rounded_end_r, 0])(
+            cylinder(r = rounded_end_r , h =self.cage_w)
+        )
+
+        
         #offset -1 to cut threw all the way
         cage = difference()(
             cage, 
             translate([0, 0, -1])(bolt_groove), 
             slider_groove,
             bottom_cut,
-            c,
+            inner_cage_cut,
+            end_cut,
         )
+        
+        cage += rounded_end
         return cage
 
     def frame(self):
@@ -265,20 +287,62 @@ class AdjustableCameraMount(object):
             left_sidewall
         )
 
+        inner_r = self.slider_r - self.slider_w -self.bumper_offset
+        cage_h = self.cage_r - inner_r
         bar_r = 1
-        bar = translate([0, 0, self.cage_r - bar_r])(
+        bar = translate([0, 0, self.cage_r - cage_h/2.0])(
             rotate([0, 90, 0])(
             cylinder(h = self.camera.w, r = bar_r, center=True)
         )
         )
-        return union()(
+
+        top = union()(
             left_sidewall,
             right_sidewall,
             bar,
         )
+        #Before this action the frame is centered
+        top = translate([0, 0, self.frame_h ])(top)
 
-    def base(self):
-        base_h = 1
+        bottom_support_ring = rotate([0, 90, 0])(
+            difference()(
+                cylinder(r = self.cage_r, h = self.camera.w, center=True),
+                cylinder(r = self.cage_r - self.bumper_offset, h = self.camera.w, center=True),
+                translate([0, INFINITE/2.0, 0])(cube([INFINITE, INFINITE, INFINITE], center=True))
+            )
+        )
+
+
+        bottom_support_h = self.frame_h - self.camera.lens_r 
+        bottom_support_intersect = translate([0, 0, bottom_support_h/2.0])(
+            cube([self.camera.w, INFINITE, bottom_support_h], center=True)
+        )
+        print "Bottom support", bottom_support_h
+        bottom_support = intersection()(
+            translate([0, 0, self.frame_h ])(bottom_support_ring),
+            bottom_support_intersect,
+        )
+
+        x = math.sqrt(math.pow(self.cage_r, 2) - math.pow(self.camera.lens_r, 2))
+        flat_support = translate([0, -x + self.cage_r/2.0, bottom_support_h /2.0])(
+            cube([self.w, self.cage_r, bottom_support_h], center=True))
+
+        flat_support_cut = translate([0, 0, self.frame_h])(
+rotate([0, 90, 0])(cylinder(r = self.slider_r, h = self.w, center=True))
+        )
+
+        return union()(
+            top,
+            #bottom_support,
+            difference()(
+            flat_support,
+            flat_support_cut,
+            ),
+            color(White)(self.front_base()),
+
+        )
+    def front_base(self):
+        base_h = self.base_thickness
         
         #base = cylinder(h = base_h, r = SCREW_HEAD_R)
         rounding_r = SCREW_HEAD_R
@@ -287,6 +351,7 @@ class AdjustableCameraMount(object):
         thickness_before  = base_h/2.0
 
         keep = cube([self.camera.w + self.cage_w*2 - rounding_r*2.0, INFINITE, thickness_before], center=True) 
+
         fc_base = rotate([0, 0, 45])(
             cube([fc_w_before, fc_h_before, thickness_before], center=True)
         )
@@ -297,9 +362,88 @@ class AdjustableCameraMount(object):
         )
         base_minkowski = minkowski()(
             base,
-            cylinder(h=thickness_before, r=SCREW_HEAD_R),
+            cylinder(h=thickness_before, r=SCREW_HEAD_R, center=True),
         )
-        return base_minkowski 
+        #FIXME hardcoded
+        cut_back = translate([0, INFINITE/2.0 - 9, 0])(cube([INFINITE, INFINITE, INFINITE], center=True))
+        base_minkowski -= cut_back
+        base = rotate([0, 0, -45])(
+            inductrix_hole_punch(rotate([0, 0, 45])(base_minkowski
+                                                    ))),
+
+
+        return translate([0, 0, base_h/2.0])(base)
+
+    def sidewall_brace(self):
+
+        rounding_r = SCREW_HEAD_R
+        base_thickness = 1
+        w = h = 5.66
+        x = math.sqrt(math.pow(self.fc.width, 2)/2.0)  - math.sqrt(math.pow(w, 2)/2.0)
+
+        #This is where we mount to the board/frame
+        bottom_cage_interface = minkowski()(
+            rotate([0, 0, 45])(
+                cube([w-rounding_r*2, h-rounding_r*2, base_thickness/2.0], center=True)
+            ),
+            cylinder(h=base_thickness/2.0, r=SCREW_HEAD_R, center=True),
+        )
+        bottom_cage_interface = translate([x, 0,  base_thickness/2.0])(
+            bottom_cage_interface)
+
+
+        cage_angle = -31
+        connector_h = 4
+        top_cage_interface = translate([x-2, 0, 7])(
+            rotate([0, cage_angle, 0])(
+             cylinder(h = 0.1, r = 1))
+        )
+
+        cage_interface = hull()(
+            top_cage_interface,
+            bottom_cage_interface,
+        )
+
+        # Remove to get to tap
+        cage_interface = rotate([0, 0, -45])(
+            inductrix_hole_punch(rotate([0, 0, 45])(cage_interface), r=SCREW_HEAD_R)
+        )
+        cage_interface = translate([0, 0, base_thickness])(cage_interface)
+        
+        base = union()(
+            rotate([0, 0, -45])(
+                inductrix_hole_punch(
+                    rotate([0, 0, 45])(
+                        bottom_cage_interface
+                    )
+                )
+            ),
+            cage_interface,
+        )
+
+        connector = translate([x-2, 0, 8])(
+            rotate([0, cage_angle, 0])(
+             cylinder(h = 15, r = 1))
+        )
+
+        base += connector
+        
+        #base = rotate([0, 0, -45])(inductrix_hole_punch(rotate([0, 0, 45])(base)))
+        return base 
+
+
+    def printable(self):
+        frame = translate([0, 0, 0])(color(White)(self.frame())),
+        camera_mount = translate([20, 0, 0])(
+                rotate([0, 0, 0])(
+                        self.camera_mount()
+                    )
+            )
+
+        return union()(
+            frame,
+            camera_mount,
+        )
 
     def test(self):
         """ Test assembly with camera """
@@ -307,7 +451,7 @@ class AdjustableCameraMount(object):
 #            rotate([-(90-mount_angle), 0, 0])(
 #            translate([0, -CRAZYPONY_CAMERA_PCB_H/2.0, 0])(
 #
-        camera_angle = 30
+        camera_angle = 0
         camera = rotate([90-camera_angle, 0, 0])(
             color(Black)(self.camera.make())
         )
@@ -326,14 +470,15 @@ class AdjustableCameraMount(object):
         )
 
         all = union()(
-            camera_asm,
-            color([0, 0, 1, 1])(self.frame()),
-        #    color([0, 0, 1])(self.base())
+            translate([0, 0, self.frame_h ])(camera_asm),
+            translate([0, 0, 0])(color(White)(self.frame())),
         )
         fc = BeeBrain()
         return union()(
-            translate([0, 0, self.camera.h/2.0 + self.fc.pcb_thickness/2.0])(all),
-            rotate([0, 180, -45])(fc.make()),
+            all,
+            translate([0, 0, -self.fc.pcb_thickness/2.0])(rotate([0, 180, -45])(fc.make())),
+            #color(White)(self.sidewall_brace()),
+
             #translate([0, -7, 7])(color(FiberBoard)(crazypony_camera_tx()))
 
         )
@@ -358,6 +503,7 @@ if __name__ == "__main__":
     mount = AdjustableCameraMount(camera, fc)
     #all = mount.camera_mount()
 
-    all = mount.test()
+    #all = mount.test()
+    all = mount.printable()
 
     scad_render_to_file(all,  filepath= "crazypony-mount-adjustable.scad", file_header='$fn = %s;' % SEGMENTS)
