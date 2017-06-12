@@ -5,7 +5,7 @@ from droneparts.camera import *
 from droneparts.hardware import *
 from droneparts.fc import *
 
-SEGMENTS =  12 
+SEGMENTS =  48
 #Bigger than anything in the model
 INFINITE = 50
 
@@ -148,19 +148,20 @@ class AdjustableCameraMount(object):
         
 
         return mount
+
+
     def camera_mount(self):
-        padding = 2.0
-        #compensate for minkoski
-        thickness = self.camera.lens_barrel_h
-        minkowski_thickness = self.camera.lens_barrel_h/ 2.0
-        #Height of things before minkoski
         h = self.mount_height 
         w = self.camera_snap_w 
+        thickness = self.camera.lens_barrel_h
+ 
+        #We have a little give here with this value, this determines
+        # How high the camera is mounted
+        camera_support_thickness = 5
+
+        minkowski_thickness = self.camera.lens_barrel_h/ 2.0
         minkowski_h = h - self.mount_rounding_r * 2
         minkowski_w = w - self.mount_rounding_r * 2
-
-        insert_cut_h =1
-
 
         #The snap is centered
         snap = difference()(
@@ -171,6 +172,9 @@ class AdjustableCameraMount(object):
                              r=self.camera.lens_barrel_r+self.mount_rounding_r),
         )
 
+
+        # Remove the snap entry
+        insert_cut_h =1
         #Cut out the top insert
         insert_cut_y = insert_cut_h + math.cos(math.radians(45)) * INFINITE 
         snap -= translate([0, insert_cut_y, 0])(
@@ -179,68 +183,48 @@ class AdjustableCameraMount(object):
                     )
                 )
 
-        snap =   minkowski()(
+        #Round out the snap
+        snap = minkowski()(
                 snap,  
                 cylinder(h=minkowski_thickness , r=self.mount_rounding_r)
         )
 
-
-#        snap += difference()(
-#            translate([0, 0, thickness])(cylinder(h=self.camera.lens_h + 1, r = self.camera.lens_r + 1)),
-#            translate([0, 0, -INFINITE/2.0])(cylinder(h=INFINITE, r = self.camera.lens_r)),
-#            translate([-INFINITE/2.0, 0, thickness])(cube([INFINITE, INFINITE,INFINITE]))
-#        )
-
-
-        #add protectors
+        #Add protectors
         support_w = 1.5
 #        snap += translate([-support_w/2.0, -INFINITE -self.camera.lens_r, thickness])(cube([support_w, INFINITE, self.camera.lens_h + 1]))
-#                                                  
         snap += translate([self.camera.lens_r, -INFINITE + h/2.0, thickness])(cube([support_w, INFINITE, self.camera.lens_h + 1]))
-                                                  
         snap += translate([-self.camera.lens_r-support_w, -INFINITE + h/2.0, thickness])(cube([support_w, INFINITE, self.camera.lens_h + 1]))
 
-        #now connect the camera snap to the base mount
+        #now connect the camera snap to the base mount with an extension piece
         #Add the rounding so we remove the minkowski from the bottom
         ext_gap = self.camera.h/2.0 - h/2.0
         ext_h = ext_gap +  self.mount_rounding_r
-        
         ext = cube([w, ext_h, self.camera.lens_barrel_h]) 
 
-        camera_support_thickness = 5
+
         camera_support_h = self.camera.depth - self.camera.lens_h
         camera_support = cube([w, camera_support_h, camera_support_thickness])
 
         camera_support_y = h - self.mount_rounding_r - self.camera.lens_r - self.camera.h/2.0 - camera_support_thickness
-        # Now round out all the edges, heights are summed 
 
-
-#        angle_cut = translate([-INFINITE/2.0, -INFINITE - camera_support_thickness, 
-#                               -INFINITE + self.camera.lens_barrel_h])(
-#                                   rotate([self.angle, 0, 0])(
-#            cube([INFINITE, INFINITE, INFINITE])
-#                                   )
-#        )
-        angle_cut = translate([-INFINITE/2.0, -INFINITE/2.0, 
-                               -INFINITE ])(
-
-        cube([INFINITE, INFINITE, INFINITE])
-        )
-
-        
+        # Add all the sub components together 
         mount =  union()(
-            translate([0, h/2.0, 0])(snap),
-            translate([0, -ext_gap, self.camera.lens_barrel_h-camera_support_h ])(
-            rotate([90, 0, 0])(
-                translate([-w/2.0, 0, 0])(camera_support)
-)
+            translate([0, h/2.0, 0])(
+                snap
             ),
             translate([-w/2.0,   -ext_gap, 0])(
                 ext
             ),
-            #angle_cut
+            translate([0, -ext_gap, self.camera.lens_barrel_h-camera_support_h ])(
+            rotate([90, 0, 0])(
+            translate([-w/2.0, 0, 0])(
+                camera_support
+            )
+            )
+            ),
         )
 
+        # Add the angle we want
         mount = rotate([-self.angle, 0, 0])(
                 translate([0, 
                            self.camera.lens_barrel_h, 
@@ -251,6 +235,12 @@ class AdjustableCameraMount(object):
                 )
                 )
 
+        #Remove anything below our target angle
+        angle_cut = translate([-INFINITE/2.0, -INFINITE/2.0, 
+                               -INFINITE ])(
+
+                    cube([INFINITE, INFINITE, INFINITE])
+                    )
         mount -= angle_cut
         
 
