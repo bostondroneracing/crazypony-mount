@@ -31,7 +31,7 @@ class FixedCameraMount(object):
 
 
     #If ther should be any additional padding to the height
-    mount_height_padding = 2.0
+
     #This is used for the  minkoski
     mount_rounding_r = 0.5
     #this must have the minkoski added to it otherwise the 
@@ -42,12 +42,6 @@ class FixedCameraMount(object):
         self.fc = fc
         self.camera = camera
 
-
-        #mounting the camera
-        self.mount_height = (camera.lens_r*2.0) + (self.mount_rounding_r*2.0) + self.mount_height_padding
-
-
-
         self.slider_r = camera.depth #slider_bolt_cut_r + slider_w/2.0
         self.angle = angle
 
@@ -55,7 +49,7 @@ class FixedCameraMount(object):
         self.camera_snap_w = self.camera.w + (1.5*2.0)#(self.camera.lens_r + padding) * 2.0
 
 
-    def _protector(self, h):
+    def _protector(self, h, camera_origin_y):
         #Add protectors
         wall_w = 1.5
         wall_thickness = self.camera.lens_h + 1
@@ -63,7 +57,7 @@ class FixedCameraMount(object):
         center_wall_inner_w = self.camera.lens_r * 2.0
         center_wall_w = center_wall_inner_w + (wall_w * 2)
 
-        wall_l = h/2.0 + (math.hypot(center_wall_w,center_wall_w)/2.0 - (self.camera.lens_r + wall_w)) / math.tan(math.radians(45))
+        wall_l = (h - camera_origin_y) + (math.hypot(center_wall_w,center_wall_w)/2.0 - (self.camera.lens_r + wall_w)) / math.tan(math.radians(45))
 
         hollow_diamond = translate([0, 0, wall_thickness/2.0])(
             rotate([0, 0, 45])(
@@ -95,12 +89,13 @@ class FixedCameraMount(object):
 
         wall = cube([wall_w, wall_l, wall_thickness])
 
+        wall_y = (h - camera_origin_y) - wall_l
         protector = union()(
-            translate([self.camera.lens_r, h/2.0 - wall_l, 0])(
+            translate([self.camera.lens_r, wall_y, 0])(
                 wall
             ),
         
-            translate([-self.camera.lens_r-wall_w, h/2.0 - wall_l, 0])(
+            translate([-self.camera.lens_r-wall_w, wall_y, 0])(
                 wall,
             ),
             v
@@ -111,7 +106,8 @@ class FixedCameraMount(object):
         return protector
 
     def _camera_mount(self):
-        h = self.mount_height 
+        mount_height_padding = 2.0
+        h = (camera.lens_r*2.0) + (self.mount_rounding_r*2.0) + mount_height_padding
         w = self.camera_snap_w 
         thickness = self.camera.lens_barrel_h
  
@@ -119,9 +115,9 @@ class FixedCameraMount(object):
         # How high the camera is mounted
         camera_support_thickness = 5
 
-        camera_face_plate = color(Blue)(translate([0, 0, thickness/2.0])(
-                cube([w , h, thickness], center=True)
-        )) 
+        camera_face_plate = translate([-w/2.0, 0, 0])(
+                cube([w , h, thickness])
+        ) 
 
         #Create cut
         camera_cut = hull()(
@@ -135,31 +131,29 @@ class FixedCameraMount(object):
 
         )
 
-        camera_face_plate -= camera_cut
+        camera_face_plate -= translate([0, self.camera.h/2.0, 0])(camera_cut)
 
-        camera_face_plate += translate([0, 0, thickness])(self._protector(h))
+        camera_face_plate += translate([0, self.camera.h/2.0, thickness])(self._protector(h, self.camera.h/2.0))
 
         #now connect the camera snap to the base mount with an extension piece
         #Add the rounding so we remove the minkowski from the bottom
         ext_gap = self.camera.h/2.0 - h/2.0
-        ext_h = ext_gap +  self.mount_rounding_r
+        ext_h = ext_gap 
         ext = cube([w, ext_h, self.camera.lens_barrel_h]) 
 
 
         camera_support_h = self.camera.depth - self.camera.lens_h
         camera_support = cube([w, camera_support_h, camera_support_thickness])
 
-        camera_support_y = h - self.mount_rounding_r - self.camera.lens_r - self.camera.h/2.0 - camera_support_thickness
+        camera_support_y = h - self.camera.lens_r - self.camera.h/2.0 - camera_support_thickness
 
         # Add all the sub components together 
         mount =  union()(
-            translate([0, h/2.0, 0])(
-               camera_face_plate 
-            ),
-            translate([-w/2.0,   -ext_gap, 0])(
-                ext
-            ),
-            translate([0, -ext_gap, self.camera.lens_barrel_h-camera_support_h ])(
+               color([1, 1, 1, 1])(camera_face_plate),
+#            translate([-w/2.0, -ext_h, 0])(
+#                ext
+#            ),
+            translate([0, 0, self.camera.lens_barrel_h-camera_support_h ])(
             rotate([90, 0, 0])(
             translate([-w/2.0, 0, 0])(
                 camera_support
@@ -168,8 +162,11 @@ class FixedCameraMount(object):
             ),
         )
 
+
+        mount += self._vtx_holder()
+
         # Add the angle we want
-        mount = rotate([-self.angle, 0, 0])(
+        mount2 = rotate([-self.angle, 0, 0])(
                 translate([0, 
                            self.camera.lens_barrel_h, 
                            ext_gap + camera_support_thickness])(
@@ -185,21 +182,24 @@ class FixedCameraMount(object):
 
                     cube([INFINITE, INFINITE, INFINITE])
                     )
-        mount -= angle_cut
+        mount2 -= angle_cut
         
 
         return mount
 
     def _vtx_holder(self):
+        return cube([1,1,1])
+
+    def _vtx_holder2(self):
 
 
         camera_support_thickness = 5.0
         camera_pcb_depth = self.camera.depth - self.camera.lens_h
         b = math.tan(math.radians(self.angle)) * camera_pcb_depth
 
-
-        holder_thickness  = math.sin(math.radians(90-self.angle)) * (camera_support_thickness - b)
-
+        holder_thickness  =  5
+        #math.sin(math.radians(90-self.angle)) * (camera_support_thickness - b)
+    
         padding = 1.5
         holder_w = self.camera.w + padding * 2
         holder_h = self.camera.h/2.0 + padding
@@ -207,14 +207,36 @@ class FixedCameraMount(object):
             translate([-holder_w/2.0, 0, 0])(
                 cube([holder_w, holder_h, holder_thickness])
             ), 
-            translate([-self.camera.w/2.0, padding, -INFINITE/2.0])(
+            translate([-self.camera.w/2.0, -INFINITE/2.0, -INFINITE/2.0])(
                 cube([self.camera.w, INFINITE, INFINITE])
             )
         )
 
-        #compute position to be behind the camera mount
         a  = math.cos(math.radians(90-self.angle)) * (camera_support_thickness - b)
         y = camera_pcb_depth/ math.cos(math.radians(self.angle))
+
+        #back_angle_cut = #
+        #back_angle_cut  =  translate([0, INFINITE/2.0 + holder_h, -INFINITE/2.0 + holder_thickness])(
+
+        front_angle_cut = rotate([-self.angle, 0, 0])(
+            translate([0, -INFINITE/2.0, INFINITE/2.0])(
+            cube([INFINITE, INFINITE, INFINITE], center=True)
+        )
+        )
+
+        back_angle_cut  =translate([0, holder_h, holder_thickness])(
+            rotate([-self.angle, 0, 0])(
+            translate([0, INFINITE/2.0, -INFINITE/2.0 ])(
+                cube([INFINITE, INFINITE, INFINITE], center=True)
+
+            )
+        )
+        )
+
+        brace -= front_angle_cut
+        brace -= back_angle_cut
+
+        #compute position to be behind the camera mount
 
         return translate([0, y + a - padding, 0])(brace)
 
@@ -266,26 +288,37 @@ class FixedCameraMount(object):
     def asm(self):
         mount = union()(
             self._camera_mount(),
-            self._vtx_holder(),
-            self._base(),
+#            self._vtx_holder(),
+            #self._base(),
         )
 
         return mount
 
-
-    def test(self):
-        """ Test assembly with camera and other components """
-        camera = translate([0, 11, 8,])(
-            rotate([90-self.angle, 0, 0])(
+    def camera_test(self):
+        camera = translate([0, self.camera.h/2.0, -self.camera.depth + self.camera.lens_h])(
+            rotate([0, 0, 0])(
             color([0, 0, 0, 0.2])(self.camera.make())
         )
         )
+
+        return union()(
+            camera,
+            self._camera_mount()
+        )
+
+    def test(self):
+        """ Test assembly with camera and other components """
+#        camera = translate([0, 11, 8,])(
+#            rotate([90-self.angle, 0, 0])(
+#            color([0, 0, 0, 0.2])(self.camera.make())
+#        )
+#        )
 
         fc = BeeBrain()
         return union()(
             translate([0, -12, 0])(self.asm()),
             translate([0, -12, 0])(camera),
-            color([0, 0, 0, 0.2])(translate([0, 0, -self.fc.pcb_thickness -1])(rotate([0, 0, -45])(fc.make()))),
+            #color([0, 0, 0, 0.2])(translate([0, 0, -self.fc.pcb_thickness -1])(rotate([0, 0, -45])(fc.make()))),
         )
 
 if __name__ == "__main__":
@@ -305,10 +338,11 @@ if __name__ == "__main__":
     mount = FixedCameraMount(camera, fc, 20)
     #all = mount.camera_mount()
 
+    all = mount.camera_test()
     #all = mount.test()
     #all = mount._vtx_holder()
     #all = mount._camera_mount()
     #all = mount._protector()
-    all = mount.asm()
+    #all = mount.asm()
 
     scad_render_to_file(all,  filepath= "camera-mount-fixed_{}-v{}.scad".format(mount.angle,VERSION), file_header='$fn = %s;' % SEGMENTS)
