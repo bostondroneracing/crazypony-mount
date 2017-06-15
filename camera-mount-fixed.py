@@ -163,7 +163,7 @@ class FixedCameraMount(object):
         )
 
 
-        mount += self._vtx_holder()
+        #mount += self._vtx_holder()
 
         # Add the angle we want
         mount2 = rotate([-self.angle, 0, 0])(
@@ -188,9 +188,17 @@ class FixedCameraMount(object):
         return mount
 
     def _vtx_holder(self):
-        return cube([1,1,1])
+        holder = difference()(
+            translate([-holder_w/2.0, 0, 0])(
+                cube([holder_w, holder_h, holder_thickness])
+            ), 
+            translate([-self.camera.w/2.0, -INFINITE/2.0, -INFINITE/2.0])(
+                cube([self.camera.w, INFINITE, INFINITE])
+            )
+        )
+        return holder 
 
-    def _vtx_holder2(self):
+    def _vtx_holder(self):
 
 
         camera_support_thickness = 5.0
@@ -295,7 +303,7 @@ class FixedCameraMount(object):
         return mount
 
     def camera_test(self):
-        camera = translate([0, self.camera.h/2.0, -self.camera.depth + self.camera.lens_h])(
+        camera = translate([0, self.camera.h/2.0, -self.camera.depth + self.camera.lens_h + self.camera_lens_barrel_h])(
             rotate([0, 0, 0])(
             color([0, 0, 0, 0.2])(self.camera.make())
         )
@@ -338,11 +346,11 @@ if __name__ == "__main__":
     mount = FixedCameraMount(camera, fc, 20)
     #all = mount.camera_mount()
 
-    all = mount.camera_test()
+    #all = mount.camera_test()
     #all = mount.test()
     #all = mount._vtx_holder()
     #all = mount._camera_mount()
     #all = mount._protector()
-    #all = mount.asm()
+    all = mount.asm()
 
     scad_render_to_file(all,  filepath= "camera-mount-fixed_{}-v{}.scad".format(mount.angle,VERSION), file_header='$fn = %s;' % SEGMENTS)
