@@ -6,22 +6,16 @@ from droneparts.hardware import *
 from droneparts.fc import *
 from droneparts.frame import *
 
-SEGMENTS =48
-#Bigger than anything in the model
-INFINITE = 50
+from cameramount import CameraMount
 
-VERSION = 1
-
-class StackedCameraMount(object):
+class StackedCameraMount(CameraMount):
 
     BASE_THICKNESS = 1.5
 
 
     def __init__(self, camera, vtx, fc, angle):
         """ The camera to make the mount for """
-        self.camera = camera
-        self.vtx = vtx
-        self.fc = fc
+        super(StackedCameraMount, self).__init__("stacked-camera-mount", camera, vtx, fc)
         self.angle = angle
 
         #This is the measurement of the top of the lens when titled at an angle
@@ -67,7 +61,6 @@ class StackedCameraMount(object):
         top_o = thickness
 
         top_hyp = self.camera_mount_top_w 
-        print "top: " , top_hyp
         camera_face_plate = linear_extrude(height=w)(
             polygon([[0, 0], [front_o, front_a], [front_o + top_hyp, front_a], [top_hyp,0]]) 
         )
@@ -83,11 +76,11 @@ class StackedCameraMount(object):
 
         #Create cut
         camera_cut = hull()(
-                    translate([0, INFINITE, 0])(
-                        cube([self.camera.barrel_r *2.0, 1, INFINITE], center=True)
+                    translate([0, CameraMount.INFINITE, 0])(
+                        cube([self.camera.barrel_r *2.0, 1, CameraMount.INFINITE], center=True)
                     ),
-                    translate([0, 0, -INFINITE/2.0])(
-                        cylinder(h=INFINITE, 
+                    translate([0, 0, -CameraMount.INFINITE/2.0])(
+                        cylinder(h=CameraMount.INFINITE, 
                                  r=self.camera.barrel_r),
                     )
 
@@ -129,15 +122,14 @@ class StackedCameraMount(object):
 
     def _base(self):
 
-
         minkowski_thickness = self.base_thickness/2.0
         base = translate([0, 0, minkowski_thickness/2.0])(
             rotate([0, 0, 45])(
             cube([INDUCTRIX_HOLE_TO_HOLE_D,INDUCTRIX_HOLE_TO_HOLE_D, minkowski_thickness], center=True)
         ))
 
-        cut = translate([0, INFINITE/2.0 +  self.l/2.0 - SCREW_HEAD_R, 0])(
-            cube([INFINITE, INFINITE, INFINITE], center = True)
+        cut = translate([0, CameraMount.INFINITE/2.0 +  self.l/2.0 - SCREW_HEAD_R, 0])(
+            cube([CameraMount.INFINITE, CameraMount.INFINITE, CameraMount.INFINITE], center = True)
         )
         base -= cut
 
@@ -155,7 +147,7 @@ class StackedCameraMount(object):
         strap_thickenss = 2
         strap_w = 10
         base -= translate([0, -self.l/2.0  - strap_thickenss/2.0 , 0])(
-        cube([strap_w, strap_thickenss, INFINITE], center=True)
+        cube([strap_w, strap_thickenss, CameraMount.INFINITE], center=True)
         )
 
         return base
@@ -190,8 +182,8 @@ class StackedCameraMount(object):
                       self.vtx.h, 
                       self.vtx.thickness + bottom_thickness]),
             ),
-            translate([-self.inside_w/2.0, -INFINITE/2.0, bottom_thickness])(
-                cube([self.inside_w, INFINITE, INFINITE])
+            translate([-self.inside_w/2.0, -CameraMount.INFINITE/2.0, bottom_thickness])(
+                cube([self.inside_w, CameraMount.INFINITE, CameraMount.INFINITE])
             )
         )
         return holder
@@ -206,7 +198,6 @@ class StackedCameraMount(object):
         o = math.sin(math.radians(self.angle)) * protector_length
 
         self.protector_top_right = o + self.protector_w + self.camera_mount_top_w
-        print "x1 ", o, " x2 ", o + self.protector_w + self.camera_mount_top_w 
         return linear_extrude(height=2)(
             polygon([[0, 0], 
                      [o, self.h], 
@@ -270,6 +261,7 @@ class StackedCameraMount(object):
             )
         )
 
+
 class VTX(object):
     def __init__(self, w, h, thickness):
         self.w = w
@@ -299,5 +291,6 @@ if __name__ == "__main__":
     #all = mount._protector()
     #all = mount._base()
     #all = mount.test()
+    mount.build()
 
-    scad_render_to_file(all,  filepath= "build/stacked-camera-mount-fixed_{}-v{}.scad".format(mount.angle,VERSION), file_header='$fn = %s;' % SEGMENTS)
+    #scad_render_to_file(all,  filepath= "build/stacked-camera-mount-fixed_{}-v{}.scad".format(mount.angle,VERSION), file_header='$fn = %s;' % SEGMENTS)
