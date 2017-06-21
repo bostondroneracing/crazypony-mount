@@ -5,7 +5,7 @@ from droneparts.camera import *
 from droneparts.hardware import *
 from droneparts.fc import *
 
-SEGMENTS = 12 
+SEGMENTS = 48 
 #Bigger than anything in the model
 INFINITE = 50
 
@@ -20,7 +20,8 @@ Improvements for next version
   Increase sidewalls
 * Decrease weight
 * The front alignment supports did not print, consider chaning this
-
+* make lil devil horns in the front to secure the rubber band from 
+  coming off
 
 """
 
@@ -166,7 +167,7 @@ class FixedCameraMount(object):
         #mount += self._vtx_holder()
 
         # Add the angle we want
-        mount2 = rotate([-self.angle, 0, 0])(
+        mount = rotate([-self.angle, 0, 0])(
                 translate([0, 
                            self.camera.lens_barrel_h, 
                            ext_gap + camera_support_thickness])(
@@ -182,12 +183,12 @@ class FixedCameraMount(object):
 
                     cube([INFINITE, INFINITE, INFINITE])
                     )
-        mount2 -= angle_cut
+        mount -= angle_cut
         
 
         return mount
 
-    def _vtx_holder(self):
+    def _vtx_holder2(self):
         holder = difference()(
             translate([-holder_w/2.0, 0, 0])(
                 cube([holder_w, holder_h, holder_thickness])
@@ -203,14 +204,13 @@ class FixedCameraMount(object):
 
         camera_support_thickness = 5.0
         camera_pcb_depth = self.camera.depth - self.camera.lens_h
-        b = math.tan(math.radians(self.angle)) * camera_pcb_depth
 
         holder_thickness  =  5
         #math.sin(math.radians(90-self.angle)) * (camera_support_thickness - b)
     
         padding = 1.5
         holder_w = self.camera.w + padding * 2
-        holder_h = self.camera.h/2.0 + padding
+        holder_h = self.camera.h/2.0 
         brace = difference()(
             translate([-holder_w/2.0, 0, 0])(
                 cube([holder_w, holder_h, holder_thickness])
@@ -220,6 +220,8 @@ class FixedCameraMount(object):
             )
         )
 
+        #This is the length of the lower camera support end
+        b = math.tan(math.radians(self.angle)) * camera_pcb_depth
         a  = math.cos(math.radians(90-self.angle)) * (camera_support_thickness - b)
         y = camera_pcb_depth/ math.cos(math.radians(self.angle))
 
@@ -246,7 +248,7 @@ class FixedCameraMount(object):
 
         #compute position to be behind the camera mount
 
-        return translate([0, y + a - padding, 0])(brace)
+        return translate([0, y + a , 0])(brace)
 
     def _base(self):
         w = 7
@@ -297,7 +299,7 @@ class FixedCameraMount(object):
         mount = union()(
             self._camera_mount(),
 #            self._vtx_holder(),
-            #self._base(),
+            self._base(),
         )
 
         return mount
@@ -353,4 +355,4 @@ if __name__ == "__main__":
     #all = mount._protector()
     all = mount.asm()
 
-    scad_render_to_file(all,  filepath= "camera-mount-fixed_{}-v{}.scad".format(mount.angle,VERSION), file_header='$fn = %s;' % SEGMENTS)
+    scad_render_to_file(all,  filepath= "build/camera-mount-fixed_{}-v{}.scad".format(mount.angle,VERSION), file_header='$fn = %s;' % SEGMENTS)
