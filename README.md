@@ -4,16 +4,16 @@
 Warning these are experiemental
 ```
 
-##Stacked Camera
+## Stacked Camera
 
 Currently designed for the HobbyHere FX806TC camera/vtx
 
-##Camera Mount Fixed
+## Camera Mount Fixed
 
 Lightweight protective design for the Crazypony AIO
 
-##Adjustable
+## Adjustable
 
-Experimental! Adjustable from 0-30 degrees
+Experimental adjustable from 0-30 degrees
 
 
