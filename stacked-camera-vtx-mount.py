@@ -10,7 +10,9 @@ from cameramount import CameraMount
 
 class StackedCameraMount(CameraMount):
 
-    BASE_THICKNESS = 1.5
+    VERSION = 2
+
+    BASE_THICKNESS = 0.75
 
 
     def __init__(self, camera, vtx, fc, angle):
@@ -152,24 +154,6 @@ class StackedCameraMount(CameraMount):
 
         return base
 
-    def _camera_mount_scaffold(self):
-        h = self.h - self.camera_mount_face_h # + self.vtx.thickness + self.base_thickness
-        scaffold = translate([-self.inside_w/2.0, 0, 0])(
-            cube([self.inside_w, h, self.camera_mount_thickness])
-        )
-        left_scaffold = translate([-self.inside_w/2.0, 0, 0])(
-            linear_extrude(height=self.camera_mount_top_w)(
-            polygon([ [0, 0], [0, h], [self.inside_w/2.0, h]])#, [self.inside_w, 0], [self.inside_w/2.0, h], [0, 0]])
-        ))
-
-
-        right_scaffold = mirror([1, 0, 0])(left_scaffold)
-
-        scaffold = union()(
-            left_scaffold,
-            right_scaffold,
-        )
-        return scaffold
 
     def _vtx_holder(self):
 
@@ -229,11 +213,6 @@ class StackedCameraMount(CameraMount):
         mount_asm = union()(
 
             self._vtx_holder(),
-
-            translate([0, self.protector_w + self.camera_mount_thickness + self.camera_mount_top_w, self.vtx.thickness + self.base_thickness])(
-            rotate([90, 0, 0])(
-                self._camera_mount_scaffold(),
-            )),
 
             translate([0, 0, self.vtx.thickness + self.base_thickness])(
                 protector_camera_mount_asm
