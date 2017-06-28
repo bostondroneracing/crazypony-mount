@@ -27,10 +27,12 @@ class CameraMount(object):
         """ Test with other components """
         return
 
-    def build(self):
+    def build(self, part=None):
         """Build the part returned by asm and write to scad"""
+        if not part:
+            part = self.asm()
         filepath = "build/{}-v{}.scad".format(self.name, CameraMount.VERSION)
         header = "$fn = {};".format(CameraMount.SEGMENTS)
-        scad_render_to_file(self.asm(),  filepath = filepath, file_header=header)
+        scad_render_to_file(part,  filepath = filepath, file_header=header)
 
 
