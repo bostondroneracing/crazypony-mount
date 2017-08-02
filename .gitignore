@@ -1,3 +1,4 @@
 *.zip
 tags
 scad/
+*.pyc
