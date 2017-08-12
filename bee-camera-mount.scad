@@ -1,11 +1,13 @@
 $fn = 90;
+VERSION = 2;
 INF = 100;
 
 TOL = 0.2;
 
 barrel_r = 7.91/2;
 barrel_l = 4.5 - TOL;
-clip_thickness = 1;
+
+clip_thickness = 2;
 clip_r = barrel_r + clip_thickness;
 
 clip_opening_angle = 60;
@@ -23,14 +25,18 @@ base_wall_thickness = 1;
 base_thickness = pcb_thickness + component_thickness + (2*base_wall_thickness);
 base_h = 5;
 
+support_thickness = 2;
 
+fc_thickness = pcb_thickness + component_thickness; 
 
 base_front_w = 7.5;
+
+// How far apart are the supports
+supported_width = 5;
+
+
 module clip_solid() {
 
-	support_thickness = 1;
-	// How far apart are the supports
-	supported_width = 4;
 
 	difference(){
 		union(){
@@ -109,68 +115,96 @@ module clip(angle){
 }
 
 
-module base_solid(){
-	pcb_narrow_w = 31.5;
-
-	thickness = pcb_thickness + component_thickness; 
+/**
+ * Solid diamond height of the pcb and the components
+ */
+module fc_stub_solid(){
 	//narrow piece
+	rotate([0, 0, 45]) cube([pcb_w, pcb_w, fc_thickness], center=true); 
+}
+
+/**
+ * Cut away the part where are no components on the FC
+ */
+module pcb_model(){
 	o = sin(45)*pcb_w;
 	front_cut = base_front_w/2*tan(45);
 	y = o - front_cut; 	
 
+	z = (pcb_thickness + component_thickness)/2;
+
 	difference(){
-		translate([0,y,0]){ 
-			rotate([0, 0, 45]){
-				cube([pcb_w, pcb_w, thickness], center=true); 
-			}
+			fc_stub_solid();
+		translate([0,-y,0]){ 
+		translate([0, -INF/2 + 1.5, INF/2 + z - component_thickness]) inf_cube();
 		}
-		//Cut front
-		//translate([0, -INF/2, 0]) inf_cube();
-		//Cut back
-		//translate([0, INF/2 + base_h, 0]) inf_cube();
 	}
 }
 
+/**
+ * Take the pcb stub, wrap it to produce the outer base
+ */
+module outer_base2(){
+	shell = 1*base_wall_thickness; 
+	minkowski() {
+		pcb_stub(fc_thickness);
+		cube([shell, shell, shell], center=true);
+		//sphere(r=shell, center=true);
+	}
+}
 
-module shell_base(){
-	mount_h = 1;
-	shell = 2*base_wall_thickness; //Since cube is centered when minkowski is used its half
+module outer_base(){
+	r = 2;
+	shell = base_wall_thickness;
+	h = (fc_thickness + shell*2)/2;
+	minkowski_x = pcb_w + shell*2 - r*2;
+	minkowski_y = pcb_w + shell*2 - r*2;
+	minkowski() {
+		rotate([0, 0, 45]) cube([minkowski_x,minkowski_y, h ], center=true); 
+
+		cylinder(h=h, r=r, center=true);
+	}
+
+}
+module hollow(){
 	difference(){
-		translate([0, 0,base_thickness/2]){// shell/2 ]){// + base_wall_thickness]){ // Move up by thickness caused by minkowski
-			difference(){
-				intersection(){
-					//translate([-INF/2, 0, -INF/2]) cube([INF, base_h, INF]);
-					difference(){
-						minkowski() {
-							base_solid();
-							//sphere(r=base_wall_thickness, center=true);
-							cube([shell, shell, shell], center=true);
-						}
-						//base_solid();
-						pcb_model();
-					}
-				}
-				//Cut back
-				translate([0, INF/2 + base_h, 0]) inf_cube();
-				//translate([0, -INF/2, -INF/2]) inf_cube();
-				
-			}
+		outer_base();
+		pcb_model();
+	}
+}
+module cut_back_opening(){
+	o = sin(45)*pcb_w;
+	front_cut = base_front_w/2*tan(45);
+	y = o - front_cut; 	
+		difference(){
+		translate([0,y,0]){ 
+			hollow();
+}
+			//Cut back
+			translate([0, INF/2 + base_h, 0]) inf_cube();
+		}
+}
+module cut_front_opening(){
+	mount_h = 1;
+
+	//Since cube is centered when minkowski is used its half
+	difference(){
+		translate([0, 0,base_thickness/2]){
+			cut_back_opening();
 		};
 		translate([0, -INF/2, -INF/2 + base_wall_thickness + pcb_thickness + mount_h]) inf_cube();
 	}
 }
 
-module pcb_model(){
-	z = (pcb_thickness + component_thickness)/2;
-	difference(){
-		base_solid();
-		translate([0, -INF/2 + 1.5, INF/2 + z - component_thickness]) inf_cube();
-	}
-}
 
 module base(){
 	//open the front and back
-	shell_base();
+	difference(){
+		cut_front_opening();
+		translate([0, -3, 0]){
+		cylinder(h=INF, r=0.75, center=true);
+		}
+	}
 }
 
 
@@ -181,4 +215,3 @@ union(){
 	base();
 	translate([0, 0, base_thickness]) camera_mount(20);
 }
-	
