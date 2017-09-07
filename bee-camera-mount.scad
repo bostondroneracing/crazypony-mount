@@ -1,5 +1,5 @@
 $fn = 90;
-VERSION = 2;
+VERSION = 3;
 INF = 100;
 
 TOL = 0.2;
@@ -33,6 +33,8 @@ base_front_w = 7.5;
 
 // How far apart are the supports
 supported_width = 5;
+
+mounting_hole_r = 0.6 + TOL;
 
 
 module clip_solid() {
@@ -199,12 +201,18 @@ module cut_front_opening(){
 
 module base(){
 	//open the front and back
-	difference(){
-		cut_front_opening();
-		translate([0, -3, 0]){
-		cylinder(h=INF, r=0.75, center=true);
-		}
-	}
+	//hull(){
+		difference(){
+			cut_front_opening();
+			// Cut out the mounting hole
+			translate([0, -3, 0]){
+					cylinder(h=INF, r=mounting_hole_r, center=true);
+			}
+		};
+//		translate([0, -3, base_thickness - 0.5 ]){
+//			cylinder(h=1, r= 2.16, center=true);
+//		}
+//	}
 }
 
 
