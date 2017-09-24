@@ -1,24 +1,41 @@
+/**
+* This camera mount is compatible with the NewBeeDrone cockroach frame
+* and the NewBeeDrone BeeBrain v1.
+* 
+* Cameras known to fit:
+*   Crazypony split camera vtx https://www.amazon.com/gp/product/B072L21RPL/
+*/
+
 $fn = 90;
 VERSION = 3;
+
+// Must be defined larger than any other piece
 INF = 100;
 
+//Include a tolerance for the printing for parts that can be bigger or larger
 TOL = 0.2;
+
+//Angle of the camera
+camera_angle = 20;
 
 barrel_r = 7.91/2;
 barrel_l = 4.5 - TOL;
 
-clip_thickness = 2;
-clip_r = barrel_r + clip_thickness;
+//How thick the snap is
+snap_thickness = 2;
+snap_r = barrel_r + snap_thickness;
 
+//This is the angle in which the camera barrell is applied
 clip_opening_angle = 60;
 
-//Height from the center of the clip to the longest leg
+//Height from the center of the snap to the longest leg
 support_height = 10;
 
-
+//PCB dimensions based on the NewBeeDrone BeeBrain
 pcb_thickness = 0.8 + TOL;
 pcb_w = 27.08 + TOL;
 
+//This is the height of the components on the PCB
 component_thickness = 1;
 
 base_wall_thickness = 1;
@@ -37,9 +54,12 @@ supported_width = 5;
 mounting_hole_r = 0.6 + TOL;
 
 
+/**
+* Helper function
+*/
+module inf_cube(){ cube([INF, INF, INF], center=true);}
+
 module clip_solid() {
-
-
 	difference(){
 		union(){
 			// Right leg
@@ -51,7 +71,7 @@ module clip_solid() {
 				cube([support_thickness, support_height, barrel_l]);
 			};
 			
-			cylinder(h=barrel_l, r = clip_r, center=true);
+			cylinder(h=barrel_l, r = snap_r, center=true);
 
 			translate([0, -support_height/2, 0]) cube([supported_width, support_height, support_thickness], center=true);
 		};
@@ -72,49 +92,8 @@ module cut_opening(angle){
 	}
 }
 
-module clip_rounding(){
-		cylinder(h=barrel_l, r= clip_thickness/2.0, center=true);
-}
 
-module round_edge(angle){
-	rotate_to_0 = 90-angle;
-	round_x = barrel_r + (clip_thickness/2.0);
 
-	//Now rotate back to center
-	rotate(rotate_to_0){
-		union(){
-			rotate(-2 * rotate_to_0){
-				union(){
-					rotate(rotate_to_0){
-						cut_opening(angle);
-					};
-					//left
-					translate([-round_x, 0, 0]) clip_rounding();		
-				}
-			}
-		//right
-		translate([round_x, 0, 0]) clip_rounding();		
-		}
-	}
-}
-
-module inf_cube(){ cube([INF, INF, INF], center=true);}
-
-module set_mount_angle(angle) {
-
-	//Now cut the bottom off
-	difference(){
-		rotate([90 - angle, 0, 0]){
-			translate([0, support_height, -barrel_l/2.0]) round_edge(clip_opening_angle);
-		};
-		translate([0, 0, -INF/2]) inf_cube();
-	}
-
-}
-
-module clip(angle){
-	set_mount_angle(20);
-}
 
 
 /**
@@ -126,7 +105,7 @@ module fc_stub_solid(){
 }
 
 /**
- * Cut away the part where are no components on the FC
+ * A model of the FC PCB. Cut away the part where are no components on the FC
  */
 module pcb_model(){
 	o = sin(45)*pcb_w;
@@ -143,17 +122,6 @@ module pcb_model(){
 	}
 }
 
-/**
- * Take the pcb stub, wrap it to produce the outer base
- */
-module outer_base2(){
-	shell = 1*base_wall_thickness; 
-	minkowski() {
-		pcb_stub(fc_thickness);
-		cube([shell, shell, shell], center=true);
-		//sphere(r=shell, center=true);
-	}
-}
 
 module outer_base(){
 	r = 2;
@@ -198,7 +166,6 @@ module cut_front_opening(){
 	}
 }
 
-
 module base(){
 	//open the front and back
 	//hull(){
@@ -216,10 +183,59 @@ module base(){
 }
 
 
-module camera_mount(angle){
-	clip(angle);
+/**
+* Round out the end of the snap
+*/
+module clip_rounding(){
+	cylinder(h=barrel_l, r= snap_thickness/2.0, center=true);
 }
+
+/**
+* Create a snap with an opening defined by opening_angle
+*/
+module snap(opening_angle){
+	rotate_to_0 = 90-opening_angle;
+	round_x = barrel_r + (snap_thickness/2.0);
+
+	//Now rotate back to center
+	rotate(rotate_to_0){
+		union(){
+			rotate(-2 * rotate_to_0){
+				union(){
+					rotate(rotate_to_0){
+						cut_opening(opening_angle);
+					};
+					//left
+					translate([-round_x, 0, 0]) clip_rounding();		
+				}
+			}
+			//right
+			translate([round_x, 0, 0]) clip_rounding();
+		}
+	}
+}
+
+/**
+* Take the snap, which is on the xy plane, and rotate it to the correct
+* angle. Remove any access material.
+*/
+module apply_camera_mount_angle(angle) {
+
+	difference(){
+		rotate([90 - angle, 0, 0]){
+			translate([0, support_height, -barrel_l/2.0]) snap(clip_opening_angle);
+		};
+		translate([0, 0, -INF/2]) inf_cube();
+	}
+}
+
+
+/*
 union(){
 	base();
-	translate([0, 0, base_thickness]) camera_mount(20);
+	//Add the camera_mount with the specified angle
+	translate([0, 0, base_thickness]) apply_camera_mount_angle(camera_angle);
 }
+*/
+snap(clip_opening_angle);
+//apply_camera_mount_angle(20);
