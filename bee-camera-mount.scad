@@ -7,7 +7,7 @@
 */
 
 $fn = 90;
-VERSION = 2.0;
+VERSION = 3.0;
 
 // Must be defined larger than any other piece
 INF = 100;
@@ -27,7 +27,7 @@ gasket_h = 1.4;
 barrel_r = 7.91/2;
 barrel_l = 4.5 - TOL;
 //How thick the snap is
-snap_thickness = 1.75; 
+snap_thickness = 2;//1.75; 
 snap_r = barrel_r + snap_thickness;
 
 //This is the angle in which the camera barrell is applied
@@ -110,6 +110,25 @@ module rounded_snap_mount(opening_angle){
 			translate([round_x, 0, 0]) clip_rounding();
 		}
 	}
+ext_h = 4;
+theta = 90 - snap_opening_angle;// snap_opening_angle;//(180 - snap_opening_angle)/2.0;
+echo("A=", theta);
+r = barrel_r + snap_thickness/2.0;
+x = cos(theta) * r; 
+y = sin(theta) * r;
+//y = 
+x1 = 6;
+y1 = y + ext_h;
+hull(){
+	translate([x, y, 0]) cylinder(h=barrel_l, r=snap_thickness/2.0, center=true);
+	translate([x1, y1, 0]) cylinder(h=barrel_l, r=snap_thickness/2.0, center=true);
+}
+
+hull(){
+	translate([-x, y, 0]) cylinder(h=barrel_l, r=snap_thickness/2.0, center=true);
+	translate([-x1, y1, 0]) cylinder(h=barrel_l, r=snap_thickness/2.0, center=true);
+
+}
 }
 
 /**
@@ -283,5 +302,6 @@ union(){
 	//Add the camera_mount with the specified angle
 	translate([0, snap_mounting_l, mounting_plate_thickness]) apply_camera_mount_angle(camera_angle);
 }
+//hull(){
 
-
+//}
