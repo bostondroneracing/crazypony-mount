@@ -7,7 +7,7 @@
 */
 
 $fn = 90;
-VERSION = 3.0;
+VERSION = 4.0;
 
 // Must be defined larger than any other piece
 INF = 100;
@@ -295,10 +295,33 @@ module fc_clip(h){
 }
 
 
+module fc_single_mount(){
+
+	h = gasket_h + pcb_thickness + fc_clip_thickness;
+	echo("H=", h);
+	
+	intersection(){
+	difference(){
+		//Combine the plate, resting support, and clip
+		union(){
+			mounting_plate_with_screw_hole();
+			translate([0, 0, -gasket_h])	mount_fc_support();
+		}
+		//Remove the gasket piece
+		translate([0,  mounting_plate_l - gasket_r, -INF/2.0]) {
+			 hull(){ 
+				cylinder(h=INF, r=gasket_r, center=true);
+				translate([0, INF]) cylinder(h=INF, r=gasket_r, center=true);
+			}
+		}
+	}
+	translate([0, 0, -INF/2 + base_mount_thickness]) cube([supported_width*2, INF, INF], center=true);
+	}
+}
 
 echo("Part length", mounting_plate_l);
 union(){
-	add_fc_clip();
+	fc_single_mount();
 	//Add the camera_mount with the specified angle
 	translate([0, snap_mounting_l, mounting_plate_thickness]) apply_camera_mount_angle(camera_angle);
 }
